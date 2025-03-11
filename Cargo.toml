@@ -1,0 +1,10 @@
+[package]
+name = "libp2p-playground"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libp2p = { version = "0.54.1", features = ["request-response", "identify", "kad", "cbor", "serde", "noise", "ping", "tcp", "tokio", "yamux", "macros"] }
+serde = "1.0.214"
+tokio = { version="1.44", features = ["full"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
