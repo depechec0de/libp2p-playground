@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use libp2p::{Multiaddr, futures::SinkExt};
-use libp2p_playground::node::{Command, Node, Request};
+use libp2p_playground::node::{Node, Request};
 use tokio::time::sleep;
 use tracing_subscriber::EnvFilter;
 
@@ -11,8 +11,9 @@ async fn simple() {
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
 
-    let mut n0 = Node::spawn(8000, 0).unwrap();
-    let n0_peer_id = Multiaddr::empty()
+    let _n0 = Node::spawn(8000, 0).unwrap();
+    let mut n0_addr: Multiaddr = "/ip4/127.0.0.1/tcp/8000".parse().unwrap();
+    n0_addr = n0_addr
         .with_p2p(
             "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
                 .parse()
@@ -20,7 +21,7 @@ async fn simple() {
         )
         .unwrap();
     let mut n1 = Node::spawn(8001, 1).unwrap();
-    let n1_peer_id = Multiaddr::empty()
+    let n1_addr = Multiaddr::empty()
         .with_p2p(
             "12D3KooWPjceQrSwdWXPyLLeABRXmuqt69Rg3sBYbU1Nft9HyQ6X"
                 .parse()
@@ -28,7 +29,7 @@ async fn simple() {
         )
         .unwrap();
     let mut n2 = Node::spawn(8002, 2).unwrap();
-    let n2_peer_id = Multiaddr::empty()
+    let n2_addr = Multiaddr::empty()
         .with_p2p(
             "12D3KooWH3uVF6wv47WnArKHk5p6cvgCJEb74UTmxztmQDc298L3"
                 .parse()
@@ -36,18 +37,29 @@ async fn simple() {
         )
         .unwrap();
 
-    let n0_address: Multiaddr = format!("/ip4/127.0.0.1/tcp/8000").parse().unwrap();
-    n1.send(Command::Dial(n0_address.clone())).await.unwrap();
-    n2.send(Command::Dial(n0_address)).await.unwrap();
+    tokio::try_join!(n1.dial(n0_addr.clone()), n2.dial(n0_addr)).unwrap();
 
-    sleep(Duration::from_millis(50)).await;
+    println!("Peers connected to bootstrap");
 
-    n1.send(Command::SendRequest(Request {
-        dest: n2_peer_id,
-        payload: "Hello, n0!".to_string(),
-    }))
-    .await
-    .unwrap();
+    n1.dial(n2_addr.clone()).await.unwrap();
 
-    sleep(Duration::from_millis(50)).await;
+    println!("Peer n1 connected to n2");
+
+    let response = n1
+        .send_request(n2_addr.clone(), "Hello, n0!".to_string())
+        .await
+        .unwrap();
+
+    assert_eq!("Bye!", response);
+    println!("First assert passed");
+
+    //n1.dial(n2_addr.clone()).await.unwrap();
+
+    let response = n1
+        .send_request(n2_addr, "Hello, n0!".to_string())
+        .await
+        .unwrap();
+
+    assert_eq!("Bye!", response);
+    println!("Second assert passed");
 }
